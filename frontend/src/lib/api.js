@@ -1,10 +1,15 @@
 import axios from 'axios';
 
-// Create axios instance with base configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+// API base URL - uses env var or relative path for Vercel proxy
+const getBaseURL = () => {
+  if (typeof window !== 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL || '/api';
+  }
+  return '/api';
+};
 
 const api = axios.create({
-  baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',
+  baseURL: getBaseURL(),
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json'
@@ -55,7 +60,7 @@ export const startTokenRefreshTimer = (expiresAt) => {
   if (!expiresAt || typeof window === 'undefined') return;
   
   const expiresTime = new Date(expiresAt).getTime();
-  const refreshTime = expiresTime - (5 * 60 * 1000); // 5 minutes before
+  const refreshTime = expiresTime - (5 * 60 * 1000);
   const now = Date.now();
   const delay = refreshTime - now;
   
@@ -64,9 +69,9 @@ export const startTokenRefreshTimer = (expiresAt) => {
     
     tokenRefreshTimer = setTimeout(async () => {
       try {
-        const response = await authApi.refreshToken();
+        const response = await api.post('/auth/refresh');
         if (response.data?.success) {
-          console.log('Token auto-refreshed successfully');
+          console.log('Token auto-refreshed');
         }
       } catch (error) {
         console.error('Auto token refresh failed:', error);
@@ -89,20 +94,6 @@ export const authApi = {
   getMe: () => api.get('/auth/me'),
   refreshToken: () => api.post('/auth/refresh'),
   logout: (options = {}) => api.post('/auth/logout', options)
-};
-
-// TikTok API (file uploads use direct URL)
-export const tiktokApi = {
-  uploadVideo: (formData, onUploadProgress) => {
-    return axios.post('/api/tiktok/upload', formData, {
-      headers: {
-        'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('pm3k_token') : ''}`,
-        'Content-Type': 'multipart/form-data'
-      },
-      timeout: 120000,
-      onUploadProgress
-    });
-  }
 };
 
 // Videos API

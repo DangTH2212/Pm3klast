@@ -115,4 +115,19 @@ export const healthApi = {
   check: () => api.get('/health')
 };
 
+// TikTok Upload API
+export const tiktokApi = {
+  uploadVideo: (formData, onUploadProgress) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('pm3k_token') : '';
+    return axios.post('/api/tiktok/upload', formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      },
+      timeout: 120000,
+      onUploadProgress
+    });
+  }
+};
+
 export default api;

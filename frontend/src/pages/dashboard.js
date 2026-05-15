@@ -8,8 +8,7 @@ import {
   Video, Upload, LogOut, User, Settings, 
   CheckCircle, Clock, XCircle, Loader, 
   RefreshCw, AlertCircle, ExternalLink, 
-  TrendingUp, Film, Calendar, AlertTriangle,
-  RefreshAlert
+  TrendingUp, Film, Calendar, AlertTriangle
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -288,7 +287,7 @@ export default function DashboardPage() {
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full flex items-center gap-1">
-                        <RefreshAlert className="w-3 h-3" />
+                        <AlertTriangle className="w-3 h-3" />
                         Needs Refresh
                       </span>
                     )}

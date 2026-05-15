@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/AuthContext';
 import { Video, Play, Zap, Shield, Upload } from 'lucide-react';
@@ -6,24 +6,40 @@ import Head from 'next/head';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { loginWithTikTok, isAuthenticated, isLoading: authLoading, error } = useAuth();
+  const { loginWithTikTok, handleOAuthCallback, isAuthenticated, isLoading: authLoading, error } = useAuth();
   const [oauthUrl, setOauthUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState(null);
 
   // Handle OAuth callback from URL
   useEffect(() => {
-    const { code, state, error: oauthError } = router.query;
-    
-    if (code && state) {
-      handleCallback(code, state);
-    } else if (oauthError) {
-      setLoginError(oauthError === 'access_denied' 
-        ? 'Login was cancelled. Please try again.' 
-        : oauthError
-      );
-    }
-  }, [router.query]);
+    const handleCallback = async () => {
+      const { code, state, error: oauthError } = router.query;
+      
+      if (oauthError) {
+        setLoginError(oauthError === 'access_denied' 
+          ? 'Login was cancelled. Please try again.' 
+          : oauthError
+        );
+        setIsLoading(false);
+        return;
+      }
+      
+      if (code) {
+        setIsLoading(true);
+        const result = await handleOAuthCallback(code, state || '');
+        
+        if (result.success) {
+          router.push('/dashboard');
+        } else {
+          setLoginError(result.error || 'Authentication failed');
+          setIsLoading(false);
+        }
+      }
+    };
+
+    handleCallback();
+  }, [router.query, handleOAuthCallback, router]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -52,22 +68,6 @@ export default function LoginPage() {
     } catch (error) {
       console.error('Login error:', error);
       setLoginError(error.message || 'An unexpected error occurred');
-      setIsLoading(false);
-    }
-  };
-
-  const handleCallback = async (code, state) => {
-    setIsLoading(true);
-    setLoginError(null);
-    
-    try {
-      const { handleOAuthCallback } = await import('@/lib/AuthContext').then(m => m.useAuth());
-      
-      // Note: This is handled in AuthContext now
-      // Just show loading while redirect happens
-    } catch (error) {
-      console.error('Callback error:', error);
-      setLoginError('Authentication failed. Please try again.');
       setIsLoading(false);
     }
   };

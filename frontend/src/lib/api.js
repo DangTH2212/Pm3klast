@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 // Create axios instance with base configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json'
@@ -45,6 +47,40 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Auto-refresh token before expiry (5 minutes before)
+let tokenRefreshTimer = null;
+
+export const startTokenRefreshTimer = (expiresAt) => {
+  if (!expiresAt || typeof window === 'undefined') return;
+  
+  const expiresTime = new Date(expiresAt).getTime();
+  const refreshTime = expiresTime - (5 * 60 * 1000); // 5 minutes before
+  const now = Date.now();
+  const delay = refreshTime - now;
+  
+  if (delay > 0) {
+    if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+    
+    tokenRefreshTimer = setTimeout(async () => {
+      try {
+        const response = await authApi.refreshToken();
+        if (response.data?.success) {
+          console.log('Token auto-refreshed successfully');
+        }
+      } catch (error) {
+        console.error('Auto token refresh failed:', error);
+      }
+    }, delay);
+  }
+};
+
+export const stopTokenRefreshTimer = () => {
+  if (tokenRefreshTimer) {
+    clearTimeout(tokenRefreshTimer);
+    tokenRefreshTimer = null;
+  }
+};
 
 // Auth API
 export const authApi = {

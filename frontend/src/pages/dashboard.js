@@ -8,7 +8,8 @@ import {
   Video, Upload, LogOut, User, Settings, 
   CheckCircle, Clock, XCircle, Loader, 
   RefreshCw, AlertCircle, ExternalLink, 
-  TrendingUp, Film, Calendar
+  TrendingUp, Film, Calendar, AlertTriangle,
+  RefreshAlert
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [tokenStatus, setTokenStatus] = useState(null);
 
   // Check authentication
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function DashboardPage() {
       
       if (profileRes.data?.success) {
         setTiktokProfile(profileRes.data.data.profile);
+        setTokenStatus(profileRes.data.data.tokenStatus);
       }
     } catch (err) {
       console.error('Fetch data error:', err);
@@ -63,6 +66,37 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefreshToken = async () => {
+    setRefreshing(true);
+    try {
+      const response = await profileApi.getCachedTikTokProfile();
+      if (response.data?.success) {
+        setTokenStatus(response.data.data.tokenStatus);
+      }
+    } catch (err) {
+      console.error('Refresh token status error:', err);
+    }
+    setRefreshing(false);
+  };
+
+  const formatTimeRemaining = (expiresAt) => {
+    if (!expiresAt) return 'Unknown';
+    const expires = new Date(expiresAt).getTime();
+    const now = Date.now();
+    const diff = expires - now;
+    
+    if (diff <= 0) return 'Expired';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 24) {
+      const days = Math.floor(hours / 24);
+      return `${days} day${days > 1 ? 's' : ''} left`;
+    }
+    return `${hours}h ${minutes}m left`;
   };
 
   const handleRefresh = async () => {
@@ -180,6 +214,18 @@ export default function DashboardPage() {
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 py-8">
+          {/* Sandbox Limitation Notice */}
+          <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-yellow-400 text-sm font-medium">TikTok Sandbox Mode</p>
+              <p className="text-gray-400 text-xs mt-1">
+                You are in sandbox environment. Videos are uploaded to your sandbox account only. 
+                Sandbox tokens expire after 24 hours - refresh before uploading new videos.
+              </p>
+            </div>
+          </div>
+
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
@@ -194,7 +240,28 @@ export default function DashboardPage() {
                 <User className="w-5 h-5 text-primary-400" />
                 TikTok Profile
               </h2>
-              <span className="status-badge status-published">Connected</span>
+              <div className="flex items-center gap-2">
+                {tokenStatus && !tokenStatus.isExpired && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {formatTimeRemaining(tokenStatus.expiresAt)}
+                  </span>
+                )}
+                {tokenStatus?.isExpired && (
+                  <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    Token Expired
+                  </span>
+                )}
+                <button
+                  onClick={handleRefreshToken}
+                  disabled={refreshing}
+                  className="p-1.5 hover:bg-dark-200 rounded-lg transition-colors text-gray-400 hover:text-primary-400"
+                  title="Refresh token status"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
             </div>
             
             {tiktokProfile ? (
@@ -212,7 +279,20 @@ export default function DashboardPage() {
                 )}
                 
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-1">{tiktokProfile.display_name || 'TikTok User'}</h3>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-xl font-bold">{tiktokProfile.display_name || 'TikTok User'}</h3>
+                    {tokenStatus?.hasToken && !tokenStatus?.isExpired ? (
+                      <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        Connected
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full flex items-center gap-1">
+                        <RefreshAlert className="w-3 h-3" />
+                        Needs Refresh
+                      </span>
+                    )}
+                  </div>
                   <p className="text-gray-500 text-sm mb-3">{tiktokProfile.bio || 'No bio'}</p>
                   
                   <div className="flex gap-6">
@@ -236,8 +316,10 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>No TikTok profile data available</p>
+              <div className="text-center py-8">
+                <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                <p className="text-gray-400 mb-2">No TikTok profile data available</p>
+                <p className="text-gray-500 text-sm">Please reconnect your TikTok account</p>
               </div>
             )}
           </div>

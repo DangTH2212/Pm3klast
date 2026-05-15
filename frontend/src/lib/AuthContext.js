@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { authApi, profileApi } from './api';
+import { startTokenRefreshTimer, stopTokenRefreshTimer } from './api';
 
 // Initial state
 const initialState = {
@@ -140,6 +141,14 @@ export function AuthProvider({ children }) {
 
     initAuth();
   }, []);
+
+  // Start token refresh timer when user logs in
+  useEffect(() => {
+    if (state.user?.tokens?.expires_at) {
+      startTokenRefreshTimer(state.user.tokens.expires_at);
+    }
+    return () => stopTokenRefreshTimer();
+  }, [state.user?.tokens?.expires_at]);
 
   // Login with TikTok
   const loginWithTikTok = useCallback(async () => {
